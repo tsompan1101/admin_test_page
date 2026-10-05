@@ -1,0 +1,57 @@
+/* Usa currentColor para funcionar con el tema claro/oscuro de admin.css sin conocer sus variables. */
+.ex-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .ex-layout { grid-template-columns: 1fr; }
+}
+
+.ex-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.ex-estado { min-height: 1.4em; margin: 8px 0; }
+
+.ex-tabla { width: 100%; border-collapse: collapse; }
+.ex-tabla th,
+.ex-tabla td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+.ex-tabla tbody tr { cursor: pointer; }
+.ex-tabla tbody tr[data-sel='true'] { background: color-mix(in srgb, currentColor 8%, transparent); }
+.ex-tabla tbody tr:hover { background: color-mix(in srgb, currentColor 5%, transparent); }
+
+.ex-foto {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.ex-foto-grande {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.ex-panel {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 8px;
+}
+.ex-panel label { display: grid; gap: 4px; font-size: 0.875rem; }
+.ex-panel input,
+.ex-panel select,
+.ex-panel textarea { font: inherit; padding: 6px 8px; }
+.ex-panel fieldset { border: 0; padding: 0; margin: 0; }
+
+.ex-foto-bloque { display: flex; gap: 12px; align-items: center; }
+.ex-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.ex-checks label { display: flex; align-items: center; gap: 6px; }
+.ex-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
