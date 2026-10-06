@@ -16,11 +16,12 @@ export type Participante = {
   redes: string | null
   participacion_congreso: string | null
   area_experiencia: string[]
+  orden_publico?: number | null // null = no sale en la página pública; 1, 2, 3... = posición
 }
 
 const BUCKET = 'participantes'
 const COLS =
-  'id,nombre_completo,contacto_email,telefono,lugar_residencia,sector_perteneciente,institucion,cargo_puesto,semblanza,imagen,redes,participacion_congreso,area_experiencia'
+  'id,nombre_completo,contacto_email,telefono,lugar_residencia,sector_perteneciente,institucion,cargo_puesto,semblanza,imagen,redes,participacion_congreso,area_experiencia,orden_publico'
 
 // '' => null: los enums de Postgres no aceptan cadenas vacías.
 const limpiar = (p: Record<string, unknown>) =>
@@ -31,7 +32,9 @@ export async function listParticipantes(): Promise<Participante[]> {
 }
 
 export async function guardarParticipante(p: Participante): Promise<Participante> {
-  const { id, ...resto } = p
+  // orden_publico no se toca aquí: se guarda aparte con guardarOrdenPublico.
+  const { id, orden_publico: _orden, ...resto } = p
+  void _orden
   const fila = limpiar(resto)
   const q = id
     ? supabase.from('participantes').update(fila).eq('id', id)
@@ -43,6 +46,12 @@ export async function guardarParticipante(p: Participante): Promise<Participante
 export async function borrarParticipante(id: number, imagen: string | null) {
   ok(await supabase.from('participantes').delete().eq('id', id))
   if (imagen) await borrarFoto(imagen).catch(() => {})
+}
+
+// Define quiénes salen en la página pública y en qué orden (el primero = posición 1).
+// Es atómico (función SQL guardar_orden_publico): los que no estén en la lista quedan fuera.
+export async function guardarOrdenPublico(ids: number[]) {
+  ok(await supabase.rpc('guardar_orden_publico', { ids }))
 }
 
 export async function importarParticipantes(filas: Record<string, unknown>[]) {

@@ -49,7 +49,7 @@ export const mensajeDe = (e: unknown): string => (e instanceof Error ? e.message
 
 // charlas.fecha_* es timestamptz: la API lo entrega en UTC. El dashboard trabaja
 // con hora local como texto, así que se convierte con el offset fijo del evento.
-const OFFSET = import.meta.env.VITE_TZ_OFFSET ?? '-06:00'
+const OFFSET = import.meta.env.VITE_TZ_OFFSET ?? '-00:00'
 const offMin = (() => {
   const m = /^([+-])(\d\d):(\d\d)$/.exec(OFFSET)!
   return (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3]))
@@ -70,21 +70,21 @@ export const logout = () => supabase.auth.signOut()
 
 type ZonaRow = {
   id: number
-  data: Partial<Pick<Zona, 'nombre' | 'x' | 'y' | 'w' | 'h'>> | null
+  datos: Partial<Pick<Zona, 'nombre' | 'x' | 'y' | 'w' | 'h'>> | null
   stands: { id: number }[] | null
 }
 let conocidas = new Set<number>() // ids que ya existen en la BD
 
 export async function getZonas(): Promise<Zona[]> {
-  const rows = ok(await supabase.from('zonas').select('id,data,stands(id)').order('id')) as unknown as ZonaRow[]
+  const rows = ok(await supabase.from('zonas').select('id,datos,stands(id)').order('id')) as unknown as ZonaRow[]
   conocidas = new Set(rows.map((r) => r.id))
   return rows.map((r) => ({
     id: r.id,
-    nombre: r.data?.nombre ?? '',
-    x: r.data?.x ?? 0,
-    y: r.data?.y ?? 0,
-    w: r.data?.w ?? 10,
-    h: r.data?.h ?? 10,
+    nombre: r.datos?.nombre ?? '',
+    x: r.datos?.x ?? 0,
+    y: r.datos?.y ?? 0,
+    w: r.datos?.w ?? 10,
+    h: r.datos?.h ?? 10,
     stand_id: r.stands?.[0]?.id ?? null,
   }))
 }
@@ -96,7 +96,7 @@ export async function putZonas(zonas: Zona[]): Promise<Zona[]> {
   const p = zonas.map((z) => ({
     id: conocidas.has(z.id) ? z.id : null,
     stand_id: z.stand_id,
-    data: { nombre: z.nombre, x: z.x, y: z.y, w: z.w, h: z.h },
+    datos: { nombre: z.nombre, x: z.x, y: z.y, w: z.w, h: z.h },
   }))
   ok(await supabase.rpc('replace_zonas', { p }))
   return getZonas()

@@ -16,8 +16,8 @@ const SNAP = 5; // ajuste en minutos
 const COL_W = 200;
 const HEAD = 36;
 const GUTTER = 56;
-const DIA_INI = 8 * 60;
-const DIA_FIN = 20 * 60;
+const MIN_INI = 8 * 60; // rango mínimo visible; se amplía si hay charlas fuera de él
+const MIN_FIN = 20 * 60;
 const CLIC_PX = 4;
 const SIN_SALON = "Sin salón";
 
@@ -98,6 +98,56 @@ export default function Cronograma() {
 
   const delDia = useMemo(() => charlas.filter((c) => fechaDe(c.inicio) === fecha), [charlas, fecha]);
 
+  // El rango de horas se amplía si hay charlas antes o después del horario mínimo.
+  const rango = useMemo(() => {
+    let ini = MIN_INI;
+    let fin = MIN_FIN;
+    for (const c of delDia) {
+      const i = minDelDia(c.inicio);
+      const f = i + (absMin(c.fin) - absMin(c.inicio));
+      ini = Math.min(ini, Math.floor(i / 60) * 60);
+      fin = Math.max(fin, Math.ceil(f / 60) * 60);
+    }
+    return { ini, fin };
+  }, [delDia]);
+
+  // Reparte en carriles (lado a lado) las charlas que se cruzan dentro de un mismo salón.
+  const carriles = useMemo(() => {
+    const res = new Map<number, { carril: number; total: number }>();
+    const porSalon = new Map<string, Charla[]>();
+    for (const c of delDia) {
+      const k = c.salon ?? SIN_SALON;
+      porSalon.set(k, [...(porSalon.get(k) ?? []), c]);
+    }
+    for (const lista of porSalon.values()) {
+      lista.sort((a, b) => absMin(a.inicio) - absMin(b.inicio) || absMin(a.fin) - absMin(b.fin));
+      let grupo: number[] = [];
+      let finCarril: number[] = [];
+      let finGrupo = -Infinity;
+      const cerrar = () => {
+        for (const id of grupo) res.get(id)!.total = finCarril.length;
+        grupo = [];
+        finCarril = [];
+      };
+      for (const c of lista) {
+        const i = absMin(c.inicio);
+        const f = absMin(c.fin);
+        if (i >= finGrupo) {
+          cerrar();
+          finGrupo = -Infinity;
+        }
+        let k = finCarril.findIndex((x) => x <= i);
+        if (k < 0) k = finCarril.length;
+        finCarril[k] = f;
+        finGrupo = Math.max(finGrupo, f);
+        grupo.push(c.id);
+        res.set(c.id, { carril: k, total: 1 });
+      }
+      cerrar();
+    }
+    return res;
+  }, [delDia]);
+
   const empalmadas = useMemo(() => {
     const s = new Set<number>();
     for (const a of delDia) {
@@ -138,7 +188,7 @@ export default function Cronograma() {
     const dy = e.clientY - m.y0;
     if (!m.moved && Math.hypot(dx, dy) < CLIC_PX) return; // menos de 4 px = clic
     let ini = Math.round((m.ini0 + dy / PX_MIN) / SNAP) * SNAP;
-    ini = clamp(ini, DIA_INI, Math.max(DIA_INI, DIA_FIN - m.dur));
+    ini = clamp(ini, rango.ini, Math.max(rango.ini, rango.fin - m.dur));
     let col = clamp(m.col0 + Math.round(dx / COL_W), 0, salones.length - 1);
     // La API no puede dejar un salón en blanco: no se permite soltar en «Sin salón».
     if (salones[col] === SIN_SALON && salones[m.col0] !== SIN_SALON) col = m.col0;
@@ -246,8 +296,8 @@ export default function Cronograma() {
   }
 
   // ---- Render ----
-  const alto = (DIA_FIN - DIA_INI) * PX_MIN;
-  const horas = Array.from({ length: (DIA_FIN - DIA_INI) / 60 + 1 }, (_, i) => DIA_INI + i * 60);
+  const alto = (rango.fin - rango.ini) * PX_MIN;
+  const horas = Array.from({ length: (rango.fin - rango.ini) / 60 + 1 }, (_, i) => rango.ini + i * 60);
   const estiloRejilla = { "--head": `${HEAD}px`, width: GUTTER + salones.length * COL_W } as CSSProperties;
 
   return (
@@ -288,8 +338,8 @@ export default function Cronograma() {
             </div>
             <div className="cron-body" style={{ height: alto }}>
               {horas.map((h) => (
-                <div key={h} className="hora" style={{ top: (h - DIA_INI) * PX_MIN }}>
-                  <span style={{ width: GUTTER }}>{hhmm(h)}</span>
+                <div key={h} className="hora" style={{ top: (h - rango.ini) * PX_MIN }}>
+                  <span style={{ width: GUTTER }}>{hhmm(h % 1440)}</span>
                 </div>
               ))}
               {salones.map((s, i) => (
@@ -300,11 +350,13 @@ export default function Cronograma() {
                 const ini = enMov ? enMov.ini : minDelDia(c.inicio);
                 const dur = absMin(c.fin) - absMin(c.inicio);
                 const col = enMov ? enMov.col : Math.max(0, salones.indexOf(c.salon ?? SIN_SALON));
+                const { carril, total } = enMov ? { carril: 0, total: 1 } : (carriles.get(c.id) ?? { carril: 0, total: 1 });
+                const ancho = (COL_W - 8) / total;
                 const estilo: CSSProperties = {
-                  top: (ini - DIA_INI) * PX_MIN,
+                  top: (ini - rango.ini) * PX_MIN,
                   height: Math.max(dur * PX_MIN, 18),
-                  left: GUTTER + col * COL_W + 4,
-                  width: COL_W - 8,
+                  left: GUTTER + col * COL_W + 4 + carril * ancho,
+                  width: ancho - (total > 1 ? 2 : 0),
                 };
                 return (
                   <div
@@ -428,4 +480,3 @@ function Modal({
     </div>
   );
 }
-

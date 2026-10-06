@@ -55,3 +55,85 @@
 .ex-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .ex-checks label { display: flex; align-items: center; gap: 6px; }
 .ex-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ───────────── Participantes: página pública (arriba) y lista completa (abajo) ───────────── */
+:root { --ex-acento: #3b82f6; }
+
+.ex-layout.solo { grid-template-columns: minmax(0, 1fr); }
+.ex-layout > .ex-panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+
+.ex-col { display: grid; gap: 20px; min-width: 0; }
+.ex-seccion {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 10px;
+}
+.ex-seccion-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ex-seccion-cab h2 { margin: 0; font-size: 1.05rem; }
+.ex-suave { opacity: 0.7; font-size: 0.85rem; margin: 0; }
+
+.ex-pub-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  min-height: 96px;
+  padding: 4px;
+  border-radius: 8px;
+}
+.ex-pub-lista.vacia {
+  place-items: center;
+  border: 2px dashed color-mix(in srgb, currentColor 30%, transparent);
+}
+.ex-pub-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  cursor: grab;
+  user-select: none;
+}
+.ex-pub-item:active { cursor: grabbing; }
+.ex-pub-item.ins-antes { box-shadow: -5px 0 0 0 var(--ex-acento); }
+.ex-pub-item.ins-despues { box-shadow: 5px 0 0 0 var(--ex-acento); }
+.ex-pub-pos {
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+.ex-pub-texto { display: grid; min-width: 0; flex: 1; }
+.ex-pub-texto strong,
+.ex-pub-texto small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-pub-texto small { opacity: 0.7; }
+.ex-pub-acc { display: flex; gap: 2px; margin-left: auto; }
+.ex-pub-acc button { padding: 2px 6px; }
+
+.ex-pool { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 480px; overflow: auto; }
+.ex-pool-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: grab;
+}
+.ex-pool-item:hover { background: color-mix(in srgb, currentColor 6%, transparent); }
+.ex-pool-item.ya { opacity: 0.55; cursor: pointer; }
+.ex-pool-item.sel { border-color: var(--ex-acento); }
+.ex-tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  white-space: nowrap;
+}
