@@ -21,14 +21,14 @@ const MIN_FIN = 20 * 60;
 const CLIC_PX = 4;
 const SIN_SALON = "Sin salón";
 
-// ---- Horas como texto "AAAA-MM-DDTHH:mm:00": nada de Date con zona horaria ----
+// ---- Horas como texto "AAAA-MM-DDTHH:mm:00". SIN conversiones de zona horaria: ----
+// ---- lo que se ve es lo que se guarda, tal cual, terminando en ":00".            ----
 const pad = (n: number) => String(n).padStart(2, "0");
 const fechaDe = (s: string) => s.slice(0, 10);
 const minDelDia = (s: string) => Number(s.slice(11, 13)) * 60 + Number(s.slice(14, 16));
 // Date.UTC solo se usa como calculadora de minutos absolutos (sin zona, sin corrimientos).
 const absMin = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 60000 + minDelDia(s);
 const desdeAbs = (m: number) => new Date(m * 60000).toISOString().slice(0, 19);
-const conHora = (fecha: string, m: number) => `${fecha}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
 const hhmm = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, a), b);
 
@@ -211,9 +211,15 @@ export default function Cronograma() {
     const cambioHora = m.ini !== m.ini0;
     if (!cambioSalon && !cambioHora) return;
 
-    const inicio = conHora(fechaDe(c.inicio), m.ini);
+    // Se guarda tal cual: "AAAA-MM-DDTHH:mm:00"
+    const inicio = `${fechaDe(c.inicio)}T${hhmm(m.ini)}:00`;
     const fin = desdeAbs(absMin(inicio) + m.dur);
-    const nuevo: Charla = { ...c, salon: cambioSalon ? salonNuevo : c.salon, inicio: cambioHora ? inicio : c.inicio, fin: cambioHora ? fin : c.fin };
+    const nuevo: Charla = {
+      ...c,
+      salon: cambioSalon ? salonNuevo : c.salon,
+      inicio: cambioHora ? inicio : c.inicio,
+      fin: cambioHora ? fin : c.fin,
+    };
     setCharlas((cs) => cs.map((x) => (x.id === c.id ? nuevo : x))); // optimista
     setEstado("Guardando…");
     try {
@@ -265,6 +271,7 @@ export default function Cronograma() {
     if (!b.inicio || !b.fin) return "Indica la hora de inicio y de fin";
     if (b.fin <= b.inicio) return "La hora de fin debe ser posterior a la de inicio";
     try {
+      // Se guarda tal cual: "AAAA-MM-DDTHH:mm:00"
       const datos = { titulo: b.titulo.trim(), inicio: `${b.inicio}:00`, fin: `${b.fin}:00` };
       if (b.id === undefined) {
         await crearCharla({ ...datos, ...(b.salon ? { salon: b.salon } : {}), ...(b.tipo ? { tipo: b.tipo } : {}) });

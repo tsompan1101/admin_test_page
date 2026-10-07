@@ -1,41 +1,62 @@
 :root {
-  --bg: #e8edf0;
-  --surf: #f6f8f9;
-  --surf2: #dde4e8;
-  --ink: #12212b;
-  --suave: #55687a;
-  --linea: #c3ced6;
-  --pri: #1d4e89;
-  --pri-tx: #ffffff;
-  --senal: #d9481f;
-  --ok: #1f7a4d;
-  --mal: #b3261e;
-  --rail: #0f2a44;
-  --rail-tx: #dbe7f3;
-  --zona-fill: rgba(29, 78, 137, 0.2);
-  --senal-fill: rgba(217, 72, 31, 0.22);
-  font-family: "Instrument Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Conversión de Pantone a Hexadecimal / HSL */
+  /* Pantone 187 C: #902142 | Pantone 465 C: #A88D61 | Pantone 468 C: #DACDAE | Pantone Cool Gray 11 C: #54565A */
+
+  --bg: #F4F1EA;                 /* Fondo principal neutro cálido basado en el 468 C */
+  --surf: #FAF8F5;               /* Superficie clara para tarjetas/contenedores */
+  --surf2: #DACDAE;              /* Pantone 468 C: Beige claro para contraste secundario */
+  --ink: #222426;                /* Texto principal oscuro derivado del Cool Gray 11 C */
+  --suave: #54565A;              /* Pantone Cool Gray 11 C: Texto secundario y bordes suave */
+  --linea: #C8C5BB;              /* Líneas divisoras y bordes sutiles */
+
+  --pri: #902142;                /* Pantone 187 C: Vino (Acento principal) */
+  --pri-tx: #ffffff;             /* Texto sobre el color principal */
+
+  --sec: #A88D61;                /* Pantone 465 C: Tostado (Acento secundario) */
+
+  --senal: #D9531E;              /* Color de alerta/señal en tono cálido armónico */
+  --ok: #2A704C;                 /* Verde para estado positivo en tono orgánico */
+  --mal: #902142;                /* Pantone 187 C reutilizado para errores/alertas */
+
+  --rail: #3B3D40;               /* Tono oscuro profundo derivado del Cool Gray 11 C */
+  --rail-tx: #DACDAE;            /* Pantone 468 C para texto sobre superficies oscuras */
+
+  --zona-fill: rgba(144, 33, 66, 0.15);   /* Relleno semi-transparente del vino */
+  --senal-fill: rgba(217, 83, 30, 0.18);  /* Relleno semi-transparente de la señal */
+
+  /* Tipografía */
+  font-family: "Encode Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   background: var(--bg);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e161b;
-    --surf: #152028;
-    --surf2: #1e2c36;
-    --ink: #e4ecf1;
-    --suave: #8fa3b2;
-    --linea: #2a3b47;
-    --pri: #6fa8e8;
-    --pri-tx: #0e161b;
-    --senal: #ff8a5c;
-    --ok: #5cc98f;
-    --mal: #ff8a80;
-    --rail: #0a1116;
-    --rail-tx: #c3d3df;
-    --zona-fill: rgba(111, 168, 232, 0.22);
-    --senal-fill: rgba(255, 138, 92, 0.25);
+    /* Fondos oscuros basados en el tono neutro Cool Gray 11 C */
+    --bg: #141517;                 /* Fondo principal muy oscuro con Matiz Cool Gray */
+    --surf: #1B1D1F;               /* Superficie/tarjetas en modo oscuro */
+    --surf2: #272A2D;              /* Contraste secundario para capas y elevaciones */
+    --ink: #EAE6DE;                /* Texto principal derivado de una variante clara del 468 C */
+    --suave: #9FA1A6;              /* Texto secundario y bordes suavizados */
+    --linea: #34373B;              /* Líneas divisoras para modo oscuro */
+
+    /* Acentos aclarándose para mantener legibilidad sobre fondo oscuro */
+    --pri: #C75B7A;                /* Pantone 187 C suavizado y aclarado para fondos oscuros */
+    --pri-tx: #141517;             /* Texto sobre el color principal */
+
+    --sec: #C9B086;                /* Pantone 465 C aclarado */
+
+    --senal: #FF8D69;              /* Alerta/señal ajustada para legibilidad nocturna */
+    --ok: #63B386;                 /* Verde orgánico para estado positivo */
+    --mal: #E57373;                /* Rojo/error en tono pastel cálido */
+
+    --rail: #0B0C0D;               /* Superficie muy oscura para barras laterales/rails */
+    --rail-tx: #DACDAE;            /* Pantone 468 C para textos en barras secundarias */
+
+    --zona-fill: rgba(199, 91, 122, 0.25);  /* Relleno semi-transparente del tono vino */
+    --senal-fill: rgba(255, 141, 105, 0.22); /* Relleno semi-transparente de la señal */
+
+    color-scheme: dark;
   }
 }
 
