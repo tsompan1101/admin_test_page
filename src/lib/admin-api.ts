@@ -113,6 +113,7 @@ export async function getStands(): Promise<Stand[]> {
 
 /* ───────────── Cronograma ───────────── */
 
+
 type CharlaRow = {
   id: number
   tipo: string | null
@@ -120,30 +121,47 @@ type CharlaRow = {
   fecha_inicio: string
   fecha_fin: string
   salon: string | null
-  cronograma: { rol: string; participantes: { nombre_completo: string } | null }[]
+  cronograma: { participante_id: number; rol: string; participantes: { nombre_completo: string } | null }[]
 }
 
 // Se lee de la tabla charlas (no de la vista programa_cronograma) para tener el id.
+// Los nombres salen de la vista personas_cronograma; si no se pudo leer, se usa el nombre embebido.
 export async function getPrograma(): Promise<Charla[]> {
-  const rows = ok(
-    await supabase
+  const [res, personas] = await Promise.all([
+    supabase
       .from('charlas')
-      .select('id,tipo,titulo,fecha_inicio,fecha_fin,salon,cronograma(rol,participantes(nombre_completo))')
+      .select('id,tipo,titulo,fecha_inicio,fecha_fin,salon,cronograma(participante_id,rol,participantes(nombre_completo))')
       .order('fecha_inicio'),
-  ) as unknown as CharlaRow[]
+    getPersonas().catch(() => [] as Persona[]),
+  ])
+  const rows = ok(res) as unknown as CharlaRow[]
+  const nombres = new Map(personas.map((p) => [p.id, p.nombre]))
 
-  return rows.map((r) => ({
-    id: r.id,
-    titulo: r.titulo,
-    salon: r.salon,
-    tipo: r.tipo,
-    inicio: aLocal(r.fecha_inicio),
-    fin: aLocal(r.fecha_fin),
-    ponentes: r.cronograma
-      .filter((c) => c.rol === 'ponente')
-      .map((c) => c.participantes?.nombre_completo)
-      .filter((n): n is string => !!n),
-  }))
+  // Personas de una charla con cierto rol ('ponente' o 'moderador')
+  const equipo = (r: CharlaRow, rol: string) =>
+    r.cronograma
+      .filter((x) => x.rol === rol)
+      .map((x) => ({
+        id: x.participante_id,
+        nombre: nombres.get(x.participante_id) ?? x.participantes?.nombre_completo ?? `Persona #${x.participante_id}`,
+      }))
+
+  return rows.map((r) => {
+    const pon = equipo(r, 'ponente')
+    const mod = equipo(r, 'moderador')
+    return {
+      id: r.id,
+      titulo: r.titulo,
+      salon: r.salon,
+      tipo: r.tipo,
+      inicio: aLocal(r.fecha_inicio),
+      fin: aLocal(r.fecha_fin),
+      ponentes: pon.map((x) => x.nombre),
+      ponenteIds: pon.map((x) => x.id),
+      moderadores: mod.map((x) => x.nombre),
+      moderadorIds: mod.map((x) => x.id),
+    }
+  })
 }
 
 // '' => null (limpia el campo); undefined => no se toca.
@@ -158,8 +176,10 @@ const aFila = (c: Partial<Charla>) => ({
   fecha_fin: c.fin === undefined ? undefined : aIso(c.fin),
 })
 
-export async function crearCharla(c: Partial<Charla>) {
-  ok(await supabase.from('charlas').insert(aFila(c)))
+// Devuelve el id de la charla creada (hace falta para asignarle ponentes y moderadores).
+export async function crearCharla(c: Partial<Charla>): Promise<number> {
+  const fila = ok(await supabase.from('charlas').insert(aFila(c)).select('id').single()) as { id: number }
+  return fila.id
 }
 export async function actualizarCharla(id: number, c: Partial<Charla>) {
   ok(await supabase.from('charlas').update(aFila(c)).eq('id', id).select('id').single())
@@ -168,12 +188,28 @@ export async function eliminarCharla(id: number) {
   ok(await supabase.from('charlas').delete().eq('id', id))
 }
 
+/* ───────────── Ponentes y moderadores de una charla ───────────── */
+
+// Participantes que se pueden asignar. La vista personas_cronograma solo expone id, nombre y cargo/institución.
+export async function getPersonas(): Promise<Persona[]> {
+  return ok(await supabase.from('personas_cronograma').select('id,nombre,detalle').order('nombre')) as Persona[]
+}
+
+// Reemplaza el equipo de la charla en una sola transacción (función SQL guardar_equipo_charla).
+// Una persona no puede ser ponente y moderador de la misma charla (clave primaria de cronograma).
+export async function guardarEquipoCharla(charlaId: number, ponentes: number[], moderadores: number[]) {
+  ok(await supabase.rpc('guardar_equipo_charla', { p_charla: charlaId, p_ponentes: ponentes, p_moderadores: moderadores }))
+}
+
 /* ───────────── Contactos para mensajes ───────────── */
 
 // Vista contactos_mensajes: quien solo tiene el permiso "mensajes" no ve el resto de columnas.
-export async function getParticipantes(): Promise<Contacto[]> {
-  return ok(await supabase.from('contactos_mensajes').select('id,nombre,email,telefono').order('id')) as Contacto[]
+export async function getContactos(): Promise<Contacto[]> {
+  return ok(
+    await supabase.from('contactos_mensajes').select('id,nombre,email,telefono,actualizaciones').order('nombre'),
+  ) as Contacto[]
 }
+
 
 /* ───────────── Edge Functions ───────────── */
 

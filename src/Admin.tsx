@@ -9,6 +9,7 @@ const SECCIONES = [
   { ruta: '/mapa', etiqueta: 'Mapa', permiso: 'mapa', icono: 'mapa' },
   { ruta: '/cronograma', etiqueta: 'Cronograma', permiso: 'cronograma', icono: 'cronograma' },
   { ruta: '/participantes', etiqueta: 'Participantes', permiso: 'participantes', icono: 'participantes' },
+  { ruta: '/qr', etiqueta: 'Códigos QR', permiso: 'participantes', icono: 'qr' },
   { ruta: '/mensajes', etiqueta: 'Mensajes', permiso: 'mensajes', icono: 'mensajes' },
   { ruta: '/usuarios', etiqueta: 'Usuarios', permiso: 'admin', icono: 'usuarios' },
 ]
@@ -18,6 +19,7 @@ const ICONOS: Record<string, string> = {
   mapa: 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11ZM12 7.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z',
   cronograma: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   participantes: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c0-3.3 2.9-5.5 6.5-5.5s6.5 2.2 6.5 5.5M16 4.5a3.2 3.2 0 0 1 0 6.2M18 14.8c2 .6 3.5 2.3 3.5 5.2',
+  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2.5v2.5H14zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
   mensajes: 'M3 6h18v12H3zM3 7l9 6.5L21 7',
   usuarios: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3ZM9.5 12l2 2 3.5-4',
 }

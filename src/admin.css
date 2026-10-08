@@ -317,3 +317,111 @@ h3 { font-size: 1rem; }
   .sb-user { margin-top: 0; border-top: 0; padding: 0; }
   .sb-main { padding: 14px; }
 }
+
+/*------------- QR ---------------*/
+
+/* Página de QR. Usa currentColor para funcionar con el tema claro/oscuro. */
+.qr-pagina { display: grid; gap: 16px; }
+
+.qr-config {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
+  gap: 20px;
+  align-items: start;
+}
+.qr-campo { display: grid; gap: 6px; font-size: 0.9rem; }
+.qr-campo input { font: inherit; padding: 6px 8px; }
+.qr-logo { display: grid; gap: 6px; font-size: 0.9rem; }
+.qr-logo-fila { display: flex; gap: 14px; align-items: center; }
+.qr-logo-vista {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fff; /* el logo se verá sobre blanco, como en el QR */
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+.qr-logo-acciones { display: grid; gap: 6px; justify-items: start; }
+.qr-check { display: flex; gap: 6px; align-items: center; }
+.qr-archivo span { cursor: pointer; text-decoration: underline; }
+
+.qr-layout { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.qr-lista .ex-pool { max-height: 560px; }
+.qr-filtros { display: grid; gap: 8px; }
+.qr-filtros input,
+.qr-filtros select { font: inherit; padding: 6px 8px; }
+
+.qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+.qr-card {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 12px;
+  text-align: center;
+}
+.qr-card img { width: 100%; height: auto; background: #fff; border-radius: 8px; }
+.qr-card figcaption { display: grid; gap: 2px; }
+.qr-card figcaption small { opacity: 0.65; word-break: break-all; font-size: 0.72rem; }
+.qr-card-acc { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+
+@media (max-width: 1100px) {
+  .qr-config { grid-template-columns: 1fr; }
+  .qr-layout { grid-template-columns: 1fr; }
+}
+
+/* Imprimir: solo los códigos, 3 por fila, sin cortar ninguno entre páginas */
+@media print {
+  .sb-side,
+  .qr-no-print { display: none !important; }
+  .sb-shell { display: block; }
+  .sb-main { padding: 0; }
+  .qr-layout { display: block; }
+  .qr-resultados { border: 0; padding: 0; }
+  .qr-grid { grid-template-columns: repeat(3, 1fr); gap: 12mm; }
+  .qr-card { break-inside: avoid; border: 1px solid #999; color: #000; }
+  .qr-card figcaption small { opacity: 1; }
+}
+
+/* Selector de personas. Usa currentColor para funcionar con el tema claro/oscuro. */
+.sp { display: grid; gap: 6px; }
+.sp-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; align-items: center; }
+.sp-vacio { opacity: 0.6; font-size: 0.85rem; }
+.sp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.sp-chip button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 6px;
+  border-radius: 50%;
+  line-height: 1.5;
+}
+.sp-chip button:hover { background: color-mix(in srgb, currentColor 20%, transparent); }
+
+.sp-buscar { font: inherit; padding: 6px 8px; width: 100%; box-sizing: border-box; }
+.sp-lista {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 190px;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 8px;
+}
+.sp-op { display: grid; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.sp-op small { opacity: 0.65; }
+.sp-op.act,
+.sp-op:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.sp-sin { cursor: default; opacity: 0.7; }
+.sp-sin:hover { background: transparent; }

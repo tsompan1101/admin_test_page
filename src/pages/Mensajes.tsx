@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   enviarEmail,
   enviarSms,
-  getParticipantes,
+  getContactos,
   mensajeDe,
   type Contacto,
   type ResultadoEnvio,
@@ -30,9 +30,11 @@ interface Envio {
 
 export default function Mensajes() {
   const [contactos, setContactos] = useState<Contacto[]>([]);
-  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [sel, setSel] = useState<Set<Contacto["id"]>>(new Set());
   const [extra, setExtra] = useState("");
   const [busca, setBusca] = useState("");
+  // Por defecto solo quienes aceptaron recibir actualizaciones al registrarse.
+  const [soloConsentimiento, setSoloConsentimiento] = useState(true);
   const [canales, setCanales] = useState({ correo: true, sms: false });
   const [asunto, setAsunto] = useState("");
   const [texto, setTexto] = useState("");
@@ -41,25 +43,32 @@ export default function Mensajes() {
   const [resultados, setResultados] = useState<Envio[]>([]);
 
   useEffect(() => {
-    getParticipantes()
+    getContactos()
       .then((c) => {
         setContactos(c);
-        setEstado(`${c.length} contactos`);
+        setEstado(`${c.length} usuarios registrados`);
       })
       .catch((e) => setEstado(mensajeDe(e)));
   }, []);
 
+  // Quién puede recibir mensajes. Se aplica también al calcular los destinatarios, para que nadie
+  // oculto por el filtro reciba un mensaje sin que se vea.
+  const elegibles = useMemo(
+    () => (soloConsentimiento ? contactos.filter((c) => c.actualizaciones === "Sí") : contactos),
+    [contactos, soloConsentimiento],
+  );
+
   const visibles = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return contactos;
-    return contactos.filter((c) => `${c.nombre} ${c.email ?? ""} ${c.telefono ?? ""}`.toLowerCase().includes(q));
-  }, [contactos, busca]);
+    if (!q) return elegibles;
+    return elegibles.filter((c) => `${c.nombre} ${c.email ?? ""} ${c.telefono ?? ""}`.toLowerCase().includes(q));
+  }, [elegibles, busca]);
 
   // Destinatarios finales: contactos elegidos + campo libre, sin duplicados.
   const { correos, telefonos } = useMemo(() => {
     const cs = new Set<string>();
     const ts = new Set<string>();
-    for (const c of contactos) {
+    for (const c of elegibles) {
       if (!sel.has(c.id)) continue;
       if (c.email && esCorreo(c.email.trim())) cs.add(c.email.trim().toLowerCase());
       const t = c.telefono ? aTelefono(c.telefono) : null;
@@ -74,13 +83,13 @@ export default function Mensajes() {
       }
     }
     return { correos: [...cs], telefonos: [...ts] };
-  }, [contactos, sel, extra]);
+  }, [elegibles, sel, extra]);
 
   const hayDestino = (canales.correo && correos.length > 0) || (canales.sms && telefonos.length > 0);
   const puedeEnviar =
     !enviando && texto.trim() !== "" && hayDestino && (!canales.correo || asunto.trim() !== "") && (canales.correo || canales.sms);
 
-  const alternar = (id: number) =>
+  const alternar = (id: Contacto["id"]) =>
     setSel((s) => {
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
@@ -146,6 +155,12 @@ export default function Mensajes() {
       <div className="msg-layout">
         <section className="panel">
           <h3>Destinatarios</h3>
+          <p className="suave">Usuarios registrados en el sitio (no son participantes).</p>
+          <label className="check">
+            <input type="checkbox" checked={soloConsentimiento} onChange={(e) => setSoloConsentimiento(e.target.checked)} />
+            Solo quienes aceptaron recibir actualizaciones ({contactos.filter((c) => c.actualizaciones === "Sí").length} de{" "}
+            {contactos.length})
+          </label>
           <input
             className="buscar"
             type="search"
@@ -166,6 +181,7 @@ export default function Mensajes() {
                   <span>
                     <strong>{c.nombre}</strong>
                     <small>{[c.email, c.telefono].filter(Boolean).join("  ") || "Sin datos de contacto"}</small>
+                    {c.actualizaciones !== "Sí" && <small className="suave">Actualizaciones: {c.actualizaciones ?? "sin respuesta"}</small>}
                   </span>
                 </label>
               </li>
@@ -250,4 +266,3 @@ export default function Mensajes() {
     </div>
   );
 }
-

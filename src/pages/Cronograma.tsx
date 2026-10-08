@@ -3,12 +3,16 @@ import {
   actualizarCharla,
   crearCharla,
   eliminarCharla,
+  getPersonas,
   getPrograma,
+  guardarEquipoCharla,
   mensajeDe,
   SALONES,
   TIPOS,
   type Charla,
+  type Persona,
 } from "../lib/admin-api";
+import SelectorPersonas from "../components/SelectorPersonas";
 
 // ---- Escala (la altura de cabecera se comparte con el CSS mediante la variable --head) ----
 const PX_MIN = 1.4; // píxeles por minuto
@@ -16,19 +20,19 @@ const SNAP = 5; // ajuste en minutos
 const COL_W = 200;
 const HEAD = 36;
 const GUTTER = 56;
-const MIN_INI = 8 * 60; // rango mínimo visible; se amplía si hay charlas fuera de él
-const MIN_FIN = 20 * 60;
+const DIA_INI = 8 * 60;
+const DIA_FIN = 20 * 60;
 const CLIC_PX = 4;
 const SIN_SALON = "Sin salón";
 
-// ---- Horas como texto "AAAA-MM-DDTHH:mm:00". SIN conversiones de zona horaria: ----
-// ---- lo que se ve es lo que se guarda, tal cual, terminando en ":00".            ----
+// ---- Horas como texto "AAAA-MM-DDTHH:mm:00": nada de Date con zona horaria ----
 const pad = (n: number) => String(n).padStart(2, "0");
 const fechaDe = (s: string) => s.slice(0, 10);
 const minDelDia = (s: string) => Number(s.slice(11, 13)) * 60 + Number(s.slice(14, 16));
 // Date.UTC solo se usa como calculadora de minutos absolutos (sin zona, sin corrimientos).
 const absMin = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 60000 + minDelDia(s);
 const desdeAbs = (m: number) => new Date(m * 60000).toISOString().slice(0, 19);
+const conHora = (fecha: string, m: number) => `${fecha}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`;
 const hhmm = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, a), b);
 
@@ -56,12 +60,14 @@ interface Borrador {
   tipo: string;
   inicio: string; // datetime-local: AAAA-MM-DDTHH:mm
   fin: string;
-  ponentes: string;
+  ponentes: number[]; // participantes.id
+  moderadores: number[];
   tenia: { salon: boolean; tipo: boolean };
 }
 
 export default function Cronograma() {
   const [charlas, setCharlas] = useState<Charla[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]); // a quién se puede asignar como ponente o moderador
   const [fecha, setFecha] = useState("");
   const [editando, setEditando] = useState<Borrador | null>(null);
   const [mov, setMov] = useState<Mov | null>(null);
@@ -82,6 +88,12 @@ export default function Cronograma() {
     void cargar();
   }, [cargar]);
 
+  useEffect(() => {
+    getPersonas()
+      .then(setPersonas)
+      .catch((e) => setEstado(`No se pudo cargar la lista de personas: ${mensajeDe(e)}`));
+  }, []);
+
   // ---- Derivados ----
   const dias = useMemo(() => [...new Set(charlas.map((c) => fechaDe(c.inicio)))].sort(), [charlas]);
   useEffect(() => {
@@ -97,56 +109,6 @@ export default function Cronograma() {
   }, [charlas]);
 
   const delDia = useMemo(() => charlas.filter((c) => fechaDe(c.inicio) === fecha), [charlas, fecha]);
-
-  // El rango de horas se amplía si hay charlas antes o después del horario mínimo.
-  const rango = useMemo(() => {
-    let ini = MIN_INI;
-    let fin = MIN_FIN;
-    for (const c of delDia) {
-      const i = minDelDia(c.inicio);
-      const f = i + (absMin(c.fin) - absMin(c.inicio));
-      ini = Math.min(ini, Math.floor(i / 60) * 60);
-      fin = Math.max(fin, Math.ceil(f / 60) * 60);
-    }
-    return { ini, fin };
-  }, [delDia]);
-
-  // Reparte en carriles (lado a lado) las charlas que se cruzan dentro de un mismo salón.
-  const carriles = useMemo(() => {
-    const res = new Map<number, { carril: number; total: number }>();
-    const porSalon = new Map<string, Charla[]>();
-    for (const c of delDia) {
-      const k = c.salon ?? SIN_SALON;
-      porSalon.set(k, [...(porSalon.get(k) ?? []), c]);
-    }
-    for (const lista of porSalon.values()) {
-      lista.sort((a, b) => absMin(a.inicio) - absMin(b.inicio) || absMin(a.fin) - absMin(b.fin));
-      let grupo: number[] = [];
-      let finCarril: number[] = [];
-      let finGrupo = -Infinity;
-      const cerrar = () => {
-        for (const id of grupo) res.get(id)!.total = finCarril.length;
-        grupo = [];
-        finCarril = [];
-      };
-      for (const c of lista) {
-        const i = absMin(c.inicio);
-        const f = absMin(c.fin);
-        if (i >= finGrupo) {
-          cerrar();
-          finGrupo = -Infinity;
-        }
-        let k = finCarril.findIndex((x) => x <= i);
-        if (k < 0) k = finCarril.length;
-        finCarril[k] = f;
-        finGrupo = Math.max(finGrupo, f);
-        grupo.push(c.id);
-        res.set(c.id, { carril: k, total: 1 });
-      }
-      cerrar();
-    }
-    return res;
-  }, [delDia]);
 
   const empalmadas = useMemo(() => {
     const s = new Set<number>();
@@ -188,7 +150,7 @@ export default function Cronograma() {
     const dy = e.clientY - m.y0;
     if (!m.moved && Math.hypot(dx, dy) < CLIC_PX) return; // menos de 4 px = clic
     let ini = Math.round((m.ini0 + dy / PX_MIN) / SNAP) * SNAP;
-    ini = clamp(ini, rango.ini, Math.max(rango.ini, rango.fin - m.dur));
+    ini = clamp(ini, DIA_INI, Math.max(DIA_INI, DIA_FIN - m.dur));
     let col = clamp(m.col0 + Math.round(dx / COL_W), 0, salones.length - 1);
     // La API no puede dejar un salón en blanco: no se permite soltar en «Sin salón».
     if (salones[col] === SIN_SALON && salones[m.col0] !== SIN_SALON) col = m.col0;
@@ -211,15 +173,9 @@ export default function Cronograma() {
     const cambioHora = m.ini !== m.ini0;
     if (!cambioSalon && !cambioHora) return;
 
-    // Se guarda tal cual: "AAAA-MM-DDTHH:mm:00"
-    const inicio = `${fechaDe(c.inicio)}T${hhmm(m.ini)}:00`;
+    const inicio = conHora(fechaDe(c.inicio), m.ini);
     const fin = desdeAbs(absMin(inicio) + m.dur);
-    const nuevo: Charla = {
-      ...c,
-      salon: cambioSalon ? salonNuevo : c.salon,
-      inicio: cambioHora ? inicio : c.inicio,
-      fin: cambioHora ? fin : c.fin,
-    };
+    const nuevo: Charla = { ...c, salon: cambioSalon ? salonNuevo : c.salon, inicio: cambioHora ? inicio : c.inicio, fin: cambioHora ? fin : c.fin };
     setCharlas((cs) => cs.map((x) => (x.id === c.id ? nuevo : x))); // optimista
     setEstado("Guardando…");
     try {
@@ -248,7 +204,8 @@ export default function Cronograma() {
       tipo: c.tipo ?? "",
       inicio: c.inicio.slice(0, 16),
       fin: c.fin.slice(0, 16),
-      ponentes: (c.ponentes ?? []).join(", "),
+      ponentes: c.ponenteIds ?? [],
+      moderadores: c.moderadorIds ?? [],
       tenia: { salon: !!c.salon, tipo: !!c.tipo },
     });
   }
@@ -261,7 +218,8 @@ export default function Cronograma() {
       tipo: "",
       inicio: `${f}T09:00`,
       fin: `${f}T10:00`,
-      ponentes: "",
+      ponentes: [],
+      moderadores: [],
       tenia: { salon: false, tipo: false },
     });
   }
@@ -271,13 +229,34 @@ export default function Cronograma() {
     if (!b.inicio || !b.fin) return "Indica la hora de inicio y de fin";
     if (b.fin <= b.inicio) return "La hora de fin debe ser posterior a la de inicio";
     try {
-      // Se guarda tal cual: "AAAA-MM-DDTHH:mm:00"
       const datos = { titulo: b.titulo.trim(), inicio: `${b.inicio}:00`, fin: `${b.fin}:00` };
-      if (b.id === undefined) {
-        await crearCharla({ ...datos, ...(b.salon ? { salon: b.salon } : {}), ...(b.tipo ? { tipo: b.tipo } : {}) });
-      } else {
-        await actualizarCharla(b.id, { ...datos, ...(b.salon ? { salon: b.salon } : {}), ...(b.tipo ? { tipo: b.tipo } : {}) });
+      const extra = { ...(b.salon ? { salon: b.salon } : {}), ...(b.tipo ? { tipo: b.tipo } : {}) };
+      let id = b.id;
+      if (id === undefined) id = await crearCharla({ ...datos, ...extra });
+      else await actualizarCharla(id, { ...datos, ...extra });
+
+      // Ponentes y moderadores: solo se escriben si cambiaron (o si es una charla nueva con equipo).
+      const orig = charlas.find((c) => c.id === id);
+      const mismos = (x: number[], y: number[]) => x.length === y.length && [...x].sort().join() === [...y].sort().join();
+      const hayCambio = orig
+        ? !mismos(orig.ponenteIds ?? [], b.ponentes) || !mismos(orig.moderadorIds ?? [], b.moderadores)
+        : b.ponentes.length > 0 || b.moderadores.length > 0;
+      if (hayCambio) {
+        try {
+          await guardarEquipoCharla(id, b.ponentes, b.moderadores);
+        } catch (e) {
+          await cargar();
+          if (b.id === undefined) {
+            // La charla ya existe: se cierra el modal para no crearla dos veces al reintentar.
+            setEditando(null);
+            setFecha(fechaDe(datos.inicio));
+            setEstado(`La charla se guardó, pero no se pudieron guardar ponentes y moderadores: ${mensajeDe(e)}`);
+            return null;
+          }
+          return `Se guardó la charla, pero no ponentes y moderadores: ${mensajeDe(e)}`;
+        }
       }
+
       setEditando(null);
       setFecha(fechaDe(datos.inicio));
       await cargar();
@@ -303,8 +282,8 @@ export default function Cronograma() {
   }
 
   // ---- Render ----
-  const alto = (rango.fin - rango.ini) * PX_MIN;
-  const horas = Array.from({ length: (rango.fin - rango.ini) / 60 + 1 }, (_, i) => rango.ini + i * 60);
+  const alto = (DIA_FIN - DIA_INI) * PX_MIN;
+  const horas = Array.from({ length: (DIA_FIN - DIA_INI) / 60 + 1 }, (_, i) => DIA_INI + i * 60);
   const estiloRejilla = { "--head": `${HEAD}px`, width: GUTTER + salones.length * COL_W } as CSSProperties;
 
   return (
@@ -345,8 +324,8 @@ export default function Cronograma() {
             </div>
             <div className="cron-body" style={{ height: alto }}>
               {horas.map((h) => (
-                <div key={h} className="hora" style={{ top: (h - rango.ini) * PX_MIN }}>
-                  <span style={{ width: GUTTER }}>{hhmm(h % 1440)}</span>
+                <div key={h} className="hora" style={{ top: (h - DIA_INI) * PX_MIN }}>
+                  <span style={{ width: GUTTER }}>{hhmm(h)}</span>
                 </div>
               ))}
               {salones.map((s, i) => (
@@ -357,13 +336,11 @@ export default function Cronograma() {
                 const ini = enMov ? enMov.ini : minDelDia(c.inicio);
                 const dur = absMin(c.fin) - absMin(c.inicio);
                 const col = enMov ? enMov.col : Math.max(0, salones.indexOf(c.salon ?? SIN_SALON));
-                const { carril, total } = enMov ? { carril: 0, total: 1 } : (carriles.get(c.id) ?? { carril: 0, total: 1 });
-                const ancho = (COL_W - 8) / total;
                 const estilo: CSSProperties = {
-                  top: (ini - rango.ini) * PX_MIN,
+                  top: (ini - DIA_INI) * PX_MIN,
                   height: Math.max(dur * PX_MIN, 18),
-                  left: GUTTER + col * COL_W + 4 + carril * ancho,
-                  width: ancho - (total > 1 ? 2 : 0),
+                  left: GUTTER + col * COL_W + 4,
+                  width: COL_W - 8,
                 };
                 return (
                   <div
@@ -392,18 +369,22 @@ export default function Cronograma() {
         </div>
       )}
 
-      {editando && <Modal inicial={editando} onCerrar={() => setEditando(null)} onGuardar={guardar} onBorrar={borrar} />}
+      {editando && (
+        <Modal inicial={editando} personas={personas} onCerrar={() => setEditando(null)} onGuardar={guardar} onBorrar={borrar} />
+      )}
     </div>
   );
 }
 
 function Modal({
   inicial,
+  personas,
   onCerrar,
   onGuardar,
   onBorrar,
 }: {
   inicial: Borrador;
+  personas: Persona[];
   onCerrar: () => void;
   onGuardar: (b: Borrador) => Promise<string | null>;
   onBorrar: (b: Borrador) => Promise<string | null>;
@@ -457,13 +438,8 @@ function Modal({
             <input type="datetime-local" step={300} value={b.fin} onChange={(e) => set({ fin: e.target.value })} />
           </label>
         </div>
-        {b.id !== undefined && (
-          <label className="campo">
-            Ponentes
-            <input value={b.ponentes || "Sin ponentes asignados"} readOnly />
-            <small className="suave">Solo lectura: los ponentes se asignan desde la base de datos.</small>
-          </label>
-        )}
+        <SelectorPersonas titulo="Ponentes" personas={personas} valor={b.ponentes} excluir={b.moderadores} onChange={(ids) => set({ ponentes: ids })} />
+        <SelectorPersonas titulo="Moderadores" personas={personas} valor={b.moderadores} excluir={b.ponentes} onChange={(ids) => set({ moderadores: ids })} />
         {error && (
           <p className="error" role="alert">
             {error}
